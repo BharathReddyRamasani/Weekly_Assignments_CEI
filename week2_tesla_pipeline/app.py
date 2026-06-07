@@ -72,21 +72,18 @@ if not df.empty:
         fig.update_traces(line_color="#E82127")
         st.plotly_chart(fig, use_container_width=True)
         
-        col_eda1, col_eda2 = st.columns(2)
-        with col_eda1:
-            st.subheader("Feature Correlation Heatmap")
-            numeric_df = df.select_dtypes(include=np.number)
-            corr = numeric_df.corr()
-            fig_heat = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r")
-            st.plotly_chart(fig_heat, use_container_width=True)
-            
-        with col_eda2:
-            st.subheader("Scatter Matrix (Key Features)")
-            scatter_cols = ['Estimated_Deliveries', 'Year', 'Month']
-            scatter_cols = [c for c in scatter_cols if c in df.columns]
-            fig_scatter = px.scatter_matrix(df, dimensions=scatter_cols, color='Estimated_Deliveries')
-            fig_scatter.update_traces(diagonal_visible=False)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+        st.subheader("Feature Correlation Heatmap")
+        numeric_df = df.select_dtypes(include=np.number)
+        corr = numeric_df.corr()
+        fig_heat = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r")
+        st.plotly_chart(fig_heat, use_container_width=True)
+        
+        st.subheader("Scatter Matrix (Key Features)")
+        scatter_cols = ['Estimated_Deliveries', 'Year', 'Month']
+        scatter_cols = [c for c in scatter_cols if c in df.columns]
+        fig_scatter = px.scatter_matrix(df, dimensions=scatter_cols, color='Estimated_Deliveries')
+        fig_scatter.update_traces(diagonal_visible=False)
+        st.plotly_chart(fig_scatter, use_container_width=True)
 
     elif page == "🧹 Data Engineering":
         st.subheader("Outlier Mitigation (IQR Capping)")
@@ -140,7 +137,7 @@ if not df.empty:
     elif page == "🔮 Forecast":
         st.subheader("Holt-Winters 12-Month Forecast")
         if os.path.exists(FORECAST_PLOT_PATH):
-            st.image(Image.open(FORECAST_PLOT_PATH), use_container_width=True)
+            st.image(Image.open(FORECAST_PLOT_PATH), use_column_width=True)
 
     elif page == "🕹️ Prediction":
         st.subheader("Live Delivery Prediction")
