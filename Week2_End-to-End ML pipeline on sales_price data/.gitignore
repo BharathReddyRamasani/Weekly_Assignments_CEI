@@ -14,8 +14,6 @@ env.bak/
 venv.bak/
 
 # Models and data
-*.pkl
-data/*.csv
 !data/.gitkeep
 
 # IDEs
