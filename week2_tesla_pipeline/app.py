@@ -14,15 +14,26 @@ sys.path.append(BASE_DIR)
 from utils.preprocessing import clean_data, cap_outliers
 from utils.feature_engineering import create_features
 
-DATA_PATH = os.path.join(BASE_DIR, 'data', 'tesla_data.csv')
-MODEL_PATH = os.path.join(BASE_DIR, 'model', 'tesla_model.pkl')
-SCALER_PATH = os.path.join(BASE_DIR, 'model', 'scaler.pkl')
-METRICS_PATH = os.path.join(BASE_DIR, 'outputs', 'model_metrics.csv')
-FORECAST_PLOT_PATH = os.path.join(BASE_DIR, 'outputs', 'forecast_plot.png')
-IMPORTANCE_PATH = os.path.join(BASE_DIR, 'outputs', 'feature_importances.csv')
-PARAMS_PATH = os.path.join(BASE_DIR, 'outputs', 'best_params.json')
+DATA_PATH      = os.path.join(BASE_DIR, 'data', 'tesla_data.csv')
+MODEL_PATH     = os.path.join(BASE_DIR, 'model', 'tesla_model.pkl')
+SCALER_PATH    = os.path.join(BASE_DIR, 'model', 'scaler.pkl')
+METRICS_PATH   = os.path.join(BASE_DIR, 'outputs', 'model_metrics.csv')
+FORECAST_PATH  = os.path.join(BASE_DIR, 'outputs', 'forecast_plot.png')
+IMPORTANCE_PATH= os.path.join(BASE_DIR, 'outputs', 'feature_importances.csv')
+PARAMS_PATH    = os.path.join(BASE_DIR, 'outputs', 'best_params.json')
 
 st.set_page_config(page_title="Tesla Intelligence", page_icon="⚡", layout="wide")
+
+# ──────────────────────────── STYLING ────────────────────────────
+st.markdown("""
+<style>
+[data-testid="stMetric"] { background:#1a1a2e; border-radius:10px; padding:12px; }
+[data-testid="stMetricLabel"] { font-size:0.75rem; color:#aaa; }
+[data-testid="stMetricValue"] { font-size:1.5rem; font-weight:700; }
+</style>
+""", unsafe_allow_html=True)
+
+H = 480  # standard chart height
 
 @st.cache_data
 def load_data():
@@ -36,134 +47,336 @@ def load_data():
 
 df = load_data()
 
-st.title("Tesla Delivery Predictive Analytics")
+st.title("⚡ Tesla Delivery Predictive Analytics")
 
-if not df.empty:
-    col1, col2, col3, col4 = st.columns(4)
-    total_deliveries = df['Estimated_Deliveries'].sum()
-    latest_delivery = df.iloc[-1]['Estimated_Deliveries']
-    prev_year_delivery = df.iloc[-13]['Estimated_Deliveries'] if len(df) > 13 else df.iloc[-2]['Estimated_Deliveries']
-    yoy_growth = ((latest_delivery - prev_year_delivery) / prev_year_delivery) * 100
+if df.empty:
+    st.error("Data source unavailable.")
+    st.stop()
 
-    col1.metric("Total Deliveries", f"{total_deliveries:,.0f}")
-    col2.metric("Latest Month", f"{latest_delivery:,.0f}", f"{yoy_growth:.1f}% YoY")
-    col3.metric("Data Points", f"{len(df)}")
-    
+# ─────────────────────── KPI HEADER ───────────────────────
+total_deliveries = df['Estimated_Deliveries'].sum()
+latest_delivery  = df.iloc[-1]['Estimated_Deliveries']
+prev_delivery    = df.iloc[-13]['Estimated_Deliveries'] if len(df) > 13 else df.iloc[-2]['Estimated_Deliveries']
+yoy_growth       = ((latest_delivery - prev_delivery) / prev_delivery) * 100
+avg_price        = df['Avg_Price_USD'].mean() if 'Avg_Price_USD' in df.columns else 0
+co2_saved        = df['CO2_Saved_tons'].sum() if 'CO2_Saved_tons' in df.columns else 0
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Total Deliveries",    f"{total_deliveries:,.0f}")
+c2.metric("Latest Month",        f"{latest_delivery:,.0f}",  f"{yoy_growth:.1f}% YoY")
+c3.metric("Data Points",         f"{len(df):,}")
+c4.metric("Avg Price (USD)",     f"${avg_price:,.0f}")
+c5.metric("CO₂ Saved (tons)",    f"{co2_saved:,.0f}")
+
+# ─────────────────────── SIDEBAR ──────────────────────────
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/b/bb/Tesla_T_symbol.svg", width=60)
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", [
+    "📊 EDA",
+    "🧹 Data Engineering",
+    "⚙️ ML Evaluation",
+    "🔮 Forecast",
+    "🕹️ Prediction"
+])
+
+# ══════════════════════════════════════════════
+#  📊  EDA
+# ══════════════════════════════════════════════
+if page == "📊 EDA":
+    st.header("📊 Exploratory Data Analysis")
+
+    # 1. Time-series
+    st.subheader("Delivery Trend Over Time")
+    monthly = df.groupby('Date')['Estimated_Deliveries'].sum().reset_index()
+    fig = px.area(monthly, x='Date', y='Estimated_Deliveries',
+                  color_discrete_sequence=["#E82127"])
+    fig.update_layout(height=H, xaxis_title="", yaxis_title="Deliveries",
+                      plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                      font_color='white')
+    fig.update_xaxes(showgrid=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+
+    # 2. Deliveries by Model
+    with col1:
+        st.subheader("Deliveries by Model")
+        model_df = df.groupby('Model')['Estimated_Deliveries'].sum().reset_index()
+        fig2 = px.bar(model_df, x='Model', y='Estimated_Deliveries',
+                      color='Model', color_discrete_sequence=px.colors.qualitative.Bold)
+        fig2.update_layout(height=H, showlegend=False,
+                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                           font_color='white')
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # 3. Deliveries by Region
+    with col2:
+        st.subheader("Deliveries by Region")
+        region_df = df.groupby('Region')['Estimated_Deliveries'].sum().reset_index()
+        fig3 = px.pie(region_df, names='Region', values='Estimated_Deliveries',
+                      hole=0.4, color_discrete_sequence=px.colors.qualitative.Bold)
+        fig3.update_layout(height=H, paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+        st.plotly_chart(fig3, use_container_width=True)
+
+    # 4. Feature Correlation Heatmap
+    st.subheader("Feature Correlation Heatmap")
+    numeric_df = df.select_dtypes(include=np.number)
+    corr = numeric_df.corr()
+    fig_heat = px.imshow(corr, text_auto=".2f", aspect="auto",
+                         color_continuous_scale="RdBu_r",
+                         width=None)
+    fig_heat.update_layout(height=600,
+                           paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+    # 5. Avg Price by Year
+    st.subheader("Average Price Trend by Year")
+    price_df = df.groupby('Year')['Avg_Price_USD'].mean().reset_index()
+    fig5 = px.line(price_df, x='Year', y='Avg_Price_USD', markers=True,
+                   color_discrete_sequence=["#FFD700"])
+    fig5.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                       paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+    st.plotly_chart(fig5, use_container_width=True)
+
+# ══════════════════════════════════════════════
+#  🧹  DATA ENGINEERING
+# ══════════════════════════════════════════════
+elif page == "🧹 Data Engineering":
+    st.header("🧹 Data Engineering")
+
+    df_clean  = clean_data(df)
+    df_capped = cap_outliers(df_clean)
+    df_feats  = create_features(df_capped)
+
+    # Outlier boxplots
+    st.subheader("Outlier Detection — Before vs After IQR Capping")
+    num_cols = df_clean.select_dtypes(include=np.number).columns.tolist()
+    sel_col = st.selectbox("Select Feature", num_cols)
+
+    fig_box = go.Figure()
+    fig_box.add_trace(go.Box(y=df_clean[sel_col],  name="Before Capping",
+                             marker_color="#E82127", boxmean=True))
+    fig_box.add_trace(go.Box(y=df_capped[sel_col], name="After Capping",
+                             marker_color="#00C851", boxmean=True))
+    fig_box.update_layout(height=H, title=f"{sel_col} — Outlier Capping",
+                          plot_bgcolor='rgba(0,0,0,0)',
+                          paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+    st.plotly_chart(fig_box, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+
+    # Distribution histogram
+    with col1:
+        st.subheader("Distribution After Capping")
+        fig_hist = px.histogram(df_capped, x=sel_col, nbins=40,
+                                color_discrete_sequence=["#E82127"])
+        fig_hist.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                               paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    # Lag feature scatter
+    with col2:
+        st.subheader("Lag-1 vs Deliveries")
+        if 'Lag_1' in df_feats.columns:
+            fig_lag = px.scatter(df_feats, x='Lag_1', y='Estimated_Deliveries',
+                                 opacity=0.6, color_discrete_sequence=["#00C851"],
+                                 trendline="ols")
+            fig_lag.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                                  paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_lag, use_container_width=True)
+
+    # Rolling means
+    st.subheader("Feature Engineering — Rolling Averages vs Actual")
+    if 'Rolling_Mean_3' in df_feats.columns and 'Date' in df_feats.columns:
+        fig_roll = px.line(df_feats, x='Date',
+                           y=['Estimated_Deliveries', 'Rolling_Mean_3', 'Rolling_Mean_6'],
+                           color_discrete_map={
+                               'Estimated_Deliveries': '#E82127',
+                               'Rolling_Mean_3': '#FFD700',
+                               'Rolling_Mean_6': '#00C851'
+                           })
+        fig_roll.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                               paper_bgcolor='rgba(0,0,0,0)', font_color='white',
+                               legend_title="Series")
+        st.plotly_chart(fig_roll, use_container_width=True)
+
+    # Preprocessing summary table
+    st.subheader("Preprocessed Data Sample")
+    st.dataframe(df_capped.head(20), use_container_width=True, height=350)
+
+# ══════════════════════════════════════════════
+#  ⚙️  ML EVALUATION
+# ══════════════════════════════════════════════
+elif page == "⚙️ ML Evaluation":
+    st.header("⚙️ ML Model Evaluation")
+
     if os.path.exists(METRICS_PATH):
         metrics_df = pd.read_csv(METRICS_PATH)
-        best_mae = metrics_df['MAE'].min()
-        col4.metric(f"Best Model MAE", f"±{best_mae:,.0f}")
 
-    # --- SIDEBAR NAVIGATION ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Navigation")
-    page = st.sidebar.radio("Go to", [
-        "📊 EDA", 
-        "🧹 Data Engineering", 
-        "⚙️ ML Evaluation", 
-        "🔮 Forecast",
-        "🕹️ Prediction"
-    ])
+        # Model comparison bar
+        st.subheader("Model Comparison — MAE")
+        fig_bar = px.bar(metrics_df.sort_values("MAE"), x="MAE", y="Model",
+                         orientation='h', color="MAE",
+                         color_continuous_scale="Reds", text_auto=".0f")
+        fig_bar.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                              paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+        st.plotly_chart(fig_bar, use_container_width=True)
 
-    if page == "📊 EDA":
-        st.subheader("Time-Series Trajectory")
-        fig = px.line(df, x='Date', y='Estimated_Deliveries', markers=True, line_shape='spline')
-        fig.update_layout(xaxis_title="", yaxis_title="Deliveries")
-        fig.update_traces(line_color="#E82127")
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.subheader("Feature Correlation Heatmap")
-        numeric_df = df.select_dtypes(include=np.number)
-        corr = numeric_df.corr()
-        fig_heat = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r")
-        st.plotly_chart(fig_heat, use_container_width=True)
-        
-        st.subheader("Scatter Matrix (Key Features)")
-        scatter_cols = ['Estimated_Deliveries', 'Year', 'Month']
-        scatter_cols = [c for c in scatter_cols if c in df.columns]
-        fig_scatter = px.scatter_matrix(df, dimensions=scatter_cols, color='Estimated_Deliveries')
-        fig_scatter.update_traces(diagonal_visible=False)
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        col1, col2 = st.columns(2)
 
-    elif page == "🧹 Data Engineering":
-        st.subheader("Outlier Mitigation (IQR Capping)")
-        df_clean = clean_data(df)
-        df_capped = cap_outliers(df_clean)
-        
-        num_cols = df_clean.select_dtypes(include=np.number).columns
-        sel_col = st.selectbox("Select Feature for Outlier Analysis", num_cols)
-        
-        fig_box = go.Figure()
-        fig_box.add_trace(go.Box(y=df_clean[sel_col], name="Before Capping", marker_color="red"))
-        fig_box.add_trace(go.Box(y=df_capped[sel_col], name="After Capping", marker_color="green"))
-        fig_box.update_layout(title="Outlier Detection Boxplots")
-        st.plotly_chart(fig_box, use_container_width=True)
-        
-        st.subheader("Feature Engineering Visualization")
-        df_features = create_features(df_capped)
-        if 'Lag_1' in df_features.columns:
-            fig_feat = px.line(df_features, x='Date', y=['Estimated_Deliveries', 'Rolling_Mean_3'], 
-                               title="Actual vs Rolling Mean (3 Months)")
-            st.plotly_chart(fig_feat, use_container_width=True)
+        # RMSE comparison
+        with col1:
+            st.subheader("Model Comparison — RMSE")
+            fig_rmse = px.bar(metrics_df.sort_values("RMSE"), x="RMSE", y="Model",
+                              orientation='h', color="RMSE",
+                              color_continuous_scale="Oranges", text_auto=".0f")
+            fig_rmse.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                                   paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_rmse, use_container_width=True)
 
-    elif page == "⚙️ ML Evaluation":
-        st.subheader("Algorithm Performance")
-        if os.path.exists(METRICS_PATH):
-            metrics_df = pd.read_csv(METRICS_PATH)
-            fig_bar = px.bar(metrics_df.sort_values("MAE"), x="MAE", y="Model", orientation='h', color="MAE", color_continuous_scale="Reds")
-            st.plotly_chart(fig_bar, use_container_width=True)
-            st.dataframe(metrics_df.style.highlight_min(subset=['MAE', 'RMSE'], color='#90EE90').format({"MAE": "{:,.2f}", "RMSE": "{:,.2f}", "R2": "{:.4f}"}), use_container_width=True)
-        
-        col_ml1, col_ml2 = st.columns(2)
-        with col_ml1:
-            st.subheader("Champion Model Hyperparameters")
-            if os.path.exists(PARAMS_PATH):
-                with open(PARAMS_PATH, 'r') as f:
-                    params = json.load(f)
-                st.json(params)
-            else:
-                st.info("No hyperparameters found.")
-                
-        with col_ml2:
-            st.subheader("Feature Importances")
-            if os.path.exists(IMPORTANCE_PATH):
-                fi_df = pd.read_csv(IMPORTANCE_PATH).sort_values("Importance", ascending=True)
-                fig_fi = px.bar(fi_df, x="Importance", y="Feature", orientation='h', title="Random Forest Feature Importance")
-                st.plotly_chart(fig_fi, use_container_width=True)
-                st.dataframe(fi_df.sort_values("Importance", ascending=False), use_container_width=True)
-            else:
-                st.info("No feature importances found.")
+        # R² comparison
+        with col2:
+            st.subheader("Model Comparison — R² Score")
+            fig_r2 = px.bar(metrics_df.sort_values("R2", ascending=False),
+                            x="R2", y="Model", orientation='h', color="R2",
+                            color_continuous_scale="Greens", text_auto=".4f")
+            fig_r2.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                                 paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_r2, use_container_width=True)
 
-    elif page == "🔮 Forecast":
-        st.subheader("Holt-Winters 12-Month Forecast")
-        if os.path.exists(FORECAST_PLOT_PATH):
-            st.image(Image.open(FORECAST_PLOT_PATH), use_column_width=True)
+        # Metrics table
+        st.subheader("Full Metrics Table")
+        st.dataframe(
+            metrics_df.style
+              .highlight_min(subset=['MAE', 'RMSE'], color='#1a6b1a')
+              .highlight_max(subset=['R2'],            color='#1a6b1a')
+              .format({"MAE": "{:,.2f}", "RMSE": "{:,.2f}", "R2": "{:.4f}"}),
+            use_container_width=True, height=250
+        )
+    else:
+        st.warning("Model metrics file not found.")
 
-    elif page == "🕹️ Prediction":
-        st.subheader("Live Delivery Prediction")
-        
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            input_year = st.number_input("Year", min_value=2015, max_value=2030, value=2028)
-        with col_p2:
-            input_month = st.selectbox("Month", options=list(range(1, 13)))
-        
-        if st.button("Predict Deliveries", type="primary"):
-            from statsmodels.tsa.holtwinters import ExponentialSmoothing
-            try:
-                last_date = df['Date'].max()
-                target_date = pd.to_datetime(f"{input_year}-{input_month}-01")
-                if target_date <= last_date:
-                    val = df.loc[df['Date'] == target_date, 'Estimated_Deliveries'].values[0]
-                    st.success(f"### Actual Past Deliveries: {val:,.0f} units")
+    col3, col4 = st.columns(2)
+
+    # Hyperparameters
+    with col3:
+        st.subheader("Champion Model Hyperparameters")
+        if os.path.exists(PARAMS_PATH):
+            with open(PARAMS_PATH, 'r') as f:
+                params = json.load(f)
+            st.json(params)
+        else:
+            st.info("No hyperparameter file found.")
+
+    # Feature Importance
+    with col4:
+        st.subheader("Feature Importances")
+        if os.path.exists(IMPORTANCE_PATH):
+            fi_df = pd.read_csv(IMPORTANCE_PATH).sort_values("Importance", ascending=True)
+            fig_fi = px.bar(fi_df, x="Importance", y="Feature", orientation='h',
+                            color="Importance", color_continuous_scale="Reds",
+                            text_auto=".4f")
+            fig_fi.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                                 paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+            st.plotly_chart(fig_fi, use_container_width=True)
+        else:
+            st.info("No feature importances file found.")
+
+# ══════════════════════════════════════════════
+#  🔮  FORECAST
+# ══════════════════════════════════════════════
+elif page == "🔮 Forecast":
+    st.header("🔮 Holt-Winters Forecast")
+
+    # Static forecast image
+    if os.path.exists(FORECAST_PATH):
+        st.subheader("12-Month Forecast Plot")
+        st.image(FORECAST_PATH, use_column_width=True)
+    else:
+        st.info("Forecast image not found — generating interactive forecast below.")
+
+    # Interactive Holt-Winters forecast
+    st.subheader("Interactive 24-Month Forecast")
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+    monthly = df.groupby('Date')['Estimated_Deliveries'].sum()
+    monthly.index = pd.DatetimeIndex(monthly.index).to_period('M').to_timestamp()
+
+    try:
+        hw = ExponentialSmoothing(monthly, trend='add', seasonal='add',
+                                  seasonal_periods=12).fit(optimized=True)
+        fc = hw.forecast(24)
+        fc_dates = pd.date_range(monthly.index[-1] + pd.DateOffset(months=1), periods=24, freq='MS')
+
+        fig_fc = go.Figure()
+        fig_fc.add_trace(go.Scatter(x=monthly.index, y=monthly.values,
+                                    name="Historical", line=dict(color="#E82127", width=2)))
+        fig_fc.add_trace(go.Scatter(x=fc_dates, y=fc.values,
+                                    name="Forecast", line=dict(color="#FFD700", width=2, dash='dot'),
+                                    fill='tozeroy', fillcolor='rgba(255,215,0,0.1)'))
+        fig_fc.update_layout(height=H+100, plot_bgcolor='rgba(0,0,0,0)',
+                             paper_bgcolor='rgba(0,0,0,0)', font_color='white',
+                             xaxis_title="Date", yaxis_title="Deliveries",
+                             legend=dict(orientation="h", yanchor="bottom", y=1.02))
+        st.plotly_chart(fig_fc, use_container_width=True)
+
+        # Forecast table
+        st.subheader("Forecasted Values")
+        fc_df = pd.DataFrame({'Date': fc_dates, 'Predicted_Deliveries': fc.values.astype(int)})
+        st.dataframe(fc_df, use_container_width=True, height=300)
+    except Exception as e:
+        st.error(f"Forecast error: {e}")
+
+# ══════════════════════════════════════════════
+#  🕹️  PREDICTION
+# ══════════════════════════════════════════════
+elif page == "🕹️ Prediction":
+    st.header("🕹️ Live Delivery Prediction")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        input_year  = st.number_input("Year",  min_value=2015, max_value=2035, value=2028)
+    with col2:
+        input_month = st.selectbox("Month", options=list(range(1, 13)),
+                                   format_func=lambda m: pd.Timestamp(2000, m, 1).strftime('%B'))
+
+    if st.button("🔍 Predict Deliveries", type="primary"):
+        from statsmodels.tsa.holtwinters import ExponentialSmoothing
+        try:
+            last_date   = df['Date'].max()
+            target_date = pd.to_datetime(f"{input_year}-{input_month:02d}-01")
+
+            if target_date <= last_date:
+                mask = df['Date'] == target_date
+                if mask.any():
+                    val = df.loc[mask, 'Estimated_Deliveries'].sum()
+                    st.success(f"✅ Actual Deliveries on record: **{val:,.0f} units**")
                 else:
-                    months_ahead = (target_date.year - last_date.year) * 12 + (target_date.month - last_date.month)
-                    monthly_series = df.groupby('Date')['Estimated_Deliveries'].sum()
-                    hw_model = ExponentialSmoothing(monthly_series, trend='add', seasonal='add', seasonal_periods=12).fit(optimized=True)
-                    forecast = hw_model.forecast(steps=months_ahead)
-                    prediction = forecast.iloc[-1]
-                    st.success(f"### Predicted Deliveries: {prediction:,.0f} units")
-            except Exception as e:
-                st.error(f"Prediction Error: {e}")
-else:
-    st.error("Data source unavailable.")
+                    st.warning("No exact record found for that date.")
+            else:
+                months_ahead  = (target_date.year - last_date.year) * 12 + (target_date.month - last_date.month)
+                monthly       = df.groupby('Date')['Estimated_Deliveries'].sum()
+                monthly.index = pd.DatetimeIndex(monthly.index).to_period('M').to_timestamp()
+                hw = ExponentialSmoothing(monthly, trend='add', seasonal='add',
+                                         seasonal_periods=12).fit(optimized=True)
+                fc = hw.forecast(steps=months_ahead)
+                prediction = max(0, int(fc.iloc[-1]))
+
+                st.success(f"🔮 Predicted Deliveries for **{pd.Timestamp(input_year, input_month, 1).strftime('%B %Y')}**: **{prediction:,.0f} units**")
+
+                # Show forecast chart up to selected date
+                fc_full  = hw.forecast(steps=months_ahead)
+                fc_dates = pd.date_range(monthly.index[-1] + pd.DateOffset(months=1), periods=months_ahead, freq='MS')
+                fig_pred = go.Figure()
+                fig_pred.add_trace(go.Scatter(x=monthly.index[-24:], y=monthly.values[-24:],
+                                              name="Recent History", line=dict(color="#E82127", width=2)))
+                fig_pred.add_trace(go.Scatter(x=fc_dates, y=fc_full.values,
+                                              name="Forecast", line=dict(color="#FFD700", width=2, dash='dot')))
+                fig_pred.add_vline(x=target_date, line_dash="dash", line_color="white",
+                                   annotation_text=f"Target: {prediction:,}", annotation_position="top right")
+                fig_pred.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
+                                       paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+                st.plotly_chart(fig_pred, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")
