@@ -122,11 +122,21 @@ if page == "📊 EDA":
     st.subheader("Feature Correlation Heatmap")
     numeric_df = df.select_dtypes(include=np.number)
     corr = numeric_df.corr()
-    fig_heat = px.imshow(corr, text_auto=".2f", aspect="auto",
-                         color_continuous_scale="RdBu_r",
-                         width=None)
-    fig_heat.update_layout(height=600,
-                           paper_bgcolor='rgba(0,0,0,0)', font_color='white')
+    cols = corr.columns.tolist()
+    fig_heat = px.imshow(
+        corr.values,
+        x=cols, y=cols,
+        text_auto=".2f",
+        aspect="auto",
+        color_continuous_scale="RdBu_r",
+        zmin=-1, zmax=1
+    )
+    fig_heat.update_layout(
+        height=600,
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_color='white',
+        xaxis=dict(tickangle=-45)
+    )
     st.plotly_chart(fig_heat, use_container_width=True)
 
     # 5. Avg Price by Year
