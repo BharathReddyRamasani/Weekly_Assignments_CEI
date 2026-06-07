@@ -301,7 +301,7 @@ elif page == "🔮 Forecast":
     # Static forecast image
     if os.path.exists(FORECAST_PATH):
         st.subheader("12-Month Forecast Plot")
-        st.image(FORECAST_PATH, use_column_width=True)
+        st.image(FORECAST_PATH, use_container_width=True)
     else:
         st.info("Forecast image not found — generating interactive forecast below.")
 
