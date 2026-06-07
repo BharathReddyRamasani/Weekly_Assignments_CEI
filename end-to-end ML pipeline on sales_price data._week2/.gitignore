@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Models and data
+*.pkl
+data/*.csv
+!data/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
