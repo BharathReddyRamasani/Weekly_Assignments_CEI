@@ -382,7 +382,7 @@ elif page == "🕹️ Prediction":
                                               name="Recent History", line=dict(color="#E82127", width=2)))
                 fig_pred.add_trace(go.Scatter(x=fc_dates, y=fc_full,
                                               name="Forecast", line=dict(color="#FFD700", width=2, dash='dot')))
-                fig_pred.add_vline(x=target_date, line_dash="dash", line_color="white",
+                fig_pred.add_vline(x=target_date.strftime("%Y-%m-%d"), line_dash="dash", line_color="white",
                                    annotation_text=f"Target: {prediction:,}", annotation_position="top right")
                 fig_pred.update_layout(height=H, plot_bgcolor='rgba(0,0,0,0)',
                                        paper_bgcolor='rgba(0,0,0,0)', font_color='white')
