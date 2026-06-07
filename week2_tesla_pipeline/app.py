@@ -313,7 +313,7 @@ elif page == "🔮 Forecast":
     monthly.index = pd.DatetimeIndex(monthly.index).to_period('M').to_timestamp()
 
     try:
-        hw = ExponentialSmoothing(monthly, trend='add', seasonal='add',
+        hw = ExponentialSmoothing(monthly.values, trend='add', seasonal='add',
                                   seasonal_periods=12).fit(optimized=True)
         fc = hw.forecast(24)
         fc_dates = pd.date_range(start=monthly.index[-1] + pd.offsets.MonthBegin(1), periods=24, freq='MS')
@@ -321,7 +321,7 @@ elif page == "🔮 Forecast":
         fig_fc = go.Figure()
         fig_fc.add_trace(go.Scatter(x=monthly.index, y=monthly.values,
                                     name="Historical", line=dict(color="#E82127", width=2)))
-        fig_fc.add_trace(go.Scatter(x=fc_dates, y=fc.values,
+        fig_fc.add_trace(go.Scatter(x=fc_dates, y=fc,
                                     name="Forecast", line=dict(color="#FFD700", width=2, dash='dot'),
                                     fill='tozeroy', fillcolor='rgba(255,215,0,0.1)'))
         fig_fc.update_layout(height=H+100, plot_bgcolor='rgba(0,0,0,0)',
@@ -332,7 +332,7 @@ elif page == "🔮 Forecast":
 
         # Forecast table
         st.subheader("Forecasted Values")
-        fc_df = pd.DataFrame({'Date': fc_dates, 'Predicted_Deliveries': fc.values.astype(int)})
+        fc_df = pd.DataFrame({'Date': fc_dates, 'Predicted_Deliveries': fc.astype(int)})
         st.dataframe(fc_df, use_container_width=True, height=300)
     except Exception as e:
         st.error(f"Forecast error: {e}")
@@ -367,10 +367,10 @@ elif page == "🕹️ Prediction":
                 months_ahead  = (target_date.year - last_date.year) * 12 + (target_date.month - last_date.month)
                 monthly       = df.groupby('Date')['Estimated_Deliveries'].sum()
                 monthly.index = pd.DatetimeIndex(monthly.index).to_period('M').to_timestamp()
-                hw = ExponentialSmoothing(monthly, trend='add', seasonal='add',
+                hw = ExponentialSmoothing(monthly.values, trend='add', seasonal='add',
                                          seasonal_periods=12).fit(optimized=True)
                 fc = hw.forecast(steps=months_ahead)
-                prediction = max(0, int(fc.iloc[-1]))
+                prediction = max(0, int(fc[-1]))
 
                 st.success(f"🔮 Predicted Deliveries for **{pd.Timestamp(input_year, input_month, 1).strftime('%B %Y')}**: **{prediction:,.0f} units**")
 
@@ -380,7 +380,7 @@ elif page == "🕹️ Prediction":
                 fig_pred = go.Figure()
                 fig_pred.add_trace(go.Scatter(x=monthly.index[-24:], y=monthly.values[-24:],
                                               name="Recent History", line=dict(color="#E82127", width=2)))
-                fig_pred.add_trace(go.Scatter(x=fc_dates, y=fc_full.values,
+                fig_pred.add_trace(go.Scatter(x=fc_dates, y=fc_full,
                                               name="Forecast", line=dict(color="#FFD700", width=2, dash='dot')))
                 fig_pred.add_vline(x=target_date, line_dash="dash", line_color="white",
                                    annotation_text=f"Target: {prediction:,}", annotation_position="top right")
