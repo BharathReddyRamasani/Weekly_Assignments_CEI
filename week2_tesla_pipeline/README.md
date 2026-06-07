@@ -1,6 +1,6 @@
 # 🚗 End-to-End ML Pipeline: Tesla Deliveries
 
-**🔗 [Live Streamlit App](https://your-app-url.streamlit.app)** *(Replace with your deployed URL)*
+**🔗 [Live Streamlit App](https://tesla-sales-and-delivery-intelligence-platform.streamlit.app/)
 
 This project demonstrates a fully modularized, production-ready machine learning pipeline for predicting and forecasting Tesla vehicle deliveries, complete with an interactive Streamlit dashboard.
 
