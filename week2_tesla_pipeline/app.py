@@ -77,7 +77,7 @@ page = st.sidebar.radio("Go to", [
     "⚙️ ML Evaluation",
     "🔮 Forecast",
     "🕹️ Prediction"
-])
+], key="main_nav")
 
 # ══════════════════════════════════════════════
 #  📊  EDA
@@ -316,7 +316,7 @@ elif page == "🔮 Forecast":
         hw = ExponentialSmoothing(monthly, trend='add', seasonal='add',
                                   seasonal_periods=12).fit(optimized=True)
         fc = hw.forecast(24)
-        fc_dates = pd.date_range(monthly.index[-1] + pd.DateOffset(months=1), periods=24, freq='MS')
+        fc_dates = pd.date_range(start=monthly.index[-1] + pd.offsets.MonthBegin(1), periods=24, freq='MS')
 
         fig_fc = go.Figure()
         fig_fc.add_trace(go.Scatter(x=monthly.index, y=monthly.values,
@@ -376,7 +376,7 @@ elif page == "🕹️ Prediction":
 
                 # Show forecast chart up to selected date
                 fc_full  = hw.forecast(steps=months_ahead)
-                fc_dates = pd.date_range(monthly.index[-1] + pd.DateOffset(months=1), periods=months_ahead, freq='MS')
+                fc_dates = pd.date_range(start=monthly.index[-1] + pd.offsets.MonthBegin(1), periods=months_ahead, freq='MS')
                 fig_pred = go.Figure()
                 fig_pred.add_trace(go.Scatter(x=monthly.index[-24:], y=monthly.values[-24:],
                                               name="Recent History", line=dict(color="#E82127", width=2)))
