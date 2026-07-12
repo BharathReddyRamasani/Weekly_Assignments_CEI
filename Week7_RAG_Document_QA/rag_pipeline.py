@@ -57,10 +57,10 @@ def process_and_index_document(file_path: str):
 
     logger.info("Splitting into chunks…")
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=600,       # smaller chunks = more precise retrieval on dense PDFs
+        chunk_overlap=150,
         length_function=len,
-        add_start_index=True,   # stores byte-offset metadata for future source attribution
+        add_start_index=True,
     )
     chunks = splitter.split_documents(documents)
     logger.info("Created %d chunks.", len(chunks))
@@ -86,10 +86,12 @@ def create_qa_chain(vectorstore):
     llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.3)
 
     system_prompt = (
-        "You are a helpful assistant that answers questions strictly based on the provided document context. "
-        "Do NOT use outside knowledge. "
-        "If the answer is not found in the context, say: 'I could not find that information in the document.' "
-        "Be concise and accurate.\n\n"
+        "You are a helpful assistant that answers questions based on the provided document context. "
+        "Use the context below to answer as thoroughly and accurately as possible. "
+        "If the context directly answers the question, give a detailed answer. "
+        "If only partial information is available, share what you found and note what is missing. "
+        "Only say you cannot find the information if it is truly absent from the context. "
+        "Do not make up facts not present in the context.\n\n"
         "Context:\n{context}"
     )
 
@@ -100,7 +102,7 @@ def create_qa_chain(vectorstore):
 
     retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 4},   # retrieve 4 chunks for better coverage
+        search_kwargs={"k": 6},   # retrieve more chunks for dense academic PDFs
     )
 
     rag_chain = (
