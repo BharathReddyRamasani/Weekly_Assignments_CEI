@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="RAG.ai – Answer questions from your own documents using AI.">
+    <title>RAG.ai – Document Q&A</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Animated background blobs -->
+<div class="bg-blob blob-1" aria-hidden="true"></div>
+<div class="bg-blob blob-2" aria-hidden="true"></div>
+
+<div class="app-container">
+
+    <!-- ──────────────────── SIDEBAR ──────────────────── -->
+    <aside class="sidebar glass" role="complementary" aria-label="Document upload">
+
+        <div class="sidebar-header">
+            <div class="logo-wrap">
+                <span class="logo-icon" aria-hidden="true">◈</span>
+                <h1>RAG<span class="highlight">.ai</span></h1>
+            </div>
+            <p class="tagline">Intelligence tailored to your data</p>
+        </div>
+
+        <hr class="divider">
+
+        <section class="upload-section" aria-label="Upload document">
+            <p class="step-label">Step 1 — Upload</p>
+            <h2 class="section-title">Your Document</h2>
+
+            <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
+                 aria-label="Click or drag a PDF or TXT file here">
+                <div class="drop-icon" id="drop-icon" aria-hidden="true">📄</div>
+                <p class="drop-hint" id="drop-hint">Click or drag a PDF / TXT file here</p>
+                <p class="drop-sub">Max 20 MB</p>
+                <input type="file" id="file-input" accept=".pdf,.txt" aria-hidden="true" tabindex="-1">
+            </div>
+
+            <!-- Status pill -->
+            <div id="upload-status" class="status-pill hidden" role="status" aria-live="polite"></div>
+        </section>
+
+        <hr class="divider">
+
+        <section class="info-section" aria-label="Current document info">
+            <p class="step-label">Active Document</p>
+            <p id="doc-name" class="doc-name-display">—</p>
+        </section>
+
+        <div class="sidebar-footer">
+            <span>Powered by Groq + LangChain</span>
+        </div>
+    </aside>
+
+    <!-- ──────────────────── MAIN CHAT ──────────────────── -->
+    <main class="chat-container" role="main">
+
+        <header class="chat-header glass" aria-label="Chat status">
+            <div>
+                <p class="step-label">Step 2 — Ask Questions</p>
+                <h2 class="section-title">Chat with your document</h2>
+            </div>
+            <div id="connection-status" class="status-badge offline" role="status" aria-live="polite">
+                <span class="badge-dot" aria-hidden="true"></span>
+                <span class="badge-text">Awaiting document</span>
+            </div>
+        </header>
+
+        <div class="chat-history" id="chat-history" role="log" aria-label="Conversation" aria-live="polite">
+            <div class="message assistant-msg" id="welcome-msg">
+                <div class="avatar ai-avatar" aria-hidden="true">◈</div>
+                <div class="bubble">
+                    👋 Hello! I'm ready to help. Upload a document on the left and I'll answer any questions about it.
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area glass">
+            <form id="chat-form" autocomplete="off" novalidate>
+                <input
+                    type="text"
+                    id="chat-input"
+                    placeholder="Ask anything about the document…"
+                    maxlength="2000"
+                    disabled
+                    aria-label="Type your question"
+                    aria-disabled="true"
+                >
+                <button type="submit" id="send-btn" disabled aria-label="Send message">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5"
+                         fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </form>
+            <p class="char-counter" id="char-counter" aria-live="polite"></p>
+        </div>
+
+    </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
