@@ -19,13 +19,21 @@ _GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 if not _GROQ_KEY or _GROQ_KEY.startswith("your_"):
     raise EnvironmentError(
         "GROQ_API_KEY is not set or still contains the placeholder value. "
-        "Please add your real key to the .env file."
+        "Please add your real key to the .env file or Streamlit Secrets."
     )
 
-# ── Embeddings (loaded once, shared across requests) ───────────────────────────
-logger.info("Loading HuggingFace embedding model…")
-EMBEDDINGS = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-logger.info("Embedding model ready.")
+# ── Default embeddings (lazy singleton) ────────────────────────────────────────
+# This is used when calling from tests or scripts directly.
+# When called from app.py (Streamlit), the cached embeddings are passed in.
+_default_embeddings = None
+
+def get_default_embeddings():
+    global _default_embeddings
+    if _default_embeddings is None:
+        logger.info("Loading HuggingFace embedding model…")
+        _default_embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        logger.info("Embedding model ready.")
+    return _default_embeddings
 
 
 def load_documents(file_path: str):
@@ -44,7 +52,7 @@ def load_documents(file_path: str):
     return docs
 
 
-def process_and_index_document(file_path: str):
+def process_and_index_document(file_path: str, embeddings=None):
     """
     Full pipeline:
       1. Load document
@@ -52,6 +60,8 @@ def process_and_index_document(file_path: str):
       3. Embed and index into an in-memory FAISS vector store
     Returns the FAISS vectorstore.
     """
+    if embeddings is None:
+        embeddings = get_default_embeddings()
     logger.info("Loading document: %s", file_path)
     documents = load_documents(file_path)
 
@@ -68,7 +78,7 @@ def process_and_index_document(file_path: str):
     if not chunks:
         raise ValueError("Document produced zero chunks after splitting. It may be too short or empty.")
 
-    vectorstore = FAISS.from_documents(chunks, EMBEDDINGS)
+    vectorstore = FAISS.from_documents(chunks, embeddings)
     logger.info("FAISS index built with %d vectors.", len(chunks))
     return vectorstore
 

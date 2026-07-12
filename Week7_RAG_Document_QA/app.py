@@ -21,6 +21,14 @@ else:
 # Import AFTER injecting the key so the startup validation in rag_pipeline passes
 from rag_pipeline import process_and_index_document, create_qa_chain, answer_question
 
+# ── Cache the embedding model (downloaded once per deployment) ──────────────────────
+# @st.cache_resource keeps the model alive across reruns so it's never
+# re-downloaded when a user uploads a new document.
+@st.cache_resource(show_spinner="Loading AI embedding model (first time only)…")
+def get_embeddings():
+    from langchain_huggingface import HuggingFaceEmbeddings
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="RAG.ai – Document Q&A",
@@ -100,7 +108,8 @@ with st.sidebar:
                         temp_path = tmp.name
 
                     with st.spinner("Chunking, embedding and indexing…"):
-                        vectorstore = process_and_index_document(temp_path)
+                        embeddings = get_embeddings()   # cached – never re-downloads
+                        vectorstore = process_and_index_document(temp_path, embeddings)
                         st.session_state.qa_chain     = create_qa_chain(vectorstore)
                         st.session_state.doc_name     = uploaded_file.name
                         st.session_state.chat_history = []   # reset on new doc
