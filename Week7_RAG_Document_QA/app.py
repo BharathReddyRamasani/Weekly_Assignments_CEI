@@ -14,6 +14,9 @@ import tempfile
 # This block bridges both so rag_pipeline.py always finds the key.
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+else:
+    # Try to get from environment (local .env via load_dotenv)
+    pass  # rag_pipeline.py will call load_dotenv() itself
 
 # Import AFTER injecting the key so the startup validation in rag_pipeline passes
 from rag_pipeline import process_and_index_document, create_qa_chain, answer_question
@@ -154,7 +157,16 @@ else:
                         answer = answer_question(st.session_state.qa_chain, user_query)
                         st.markdown(answer)
                         st.session_state.chat_history.append(("assistant", answer))
-                    except Exception:
-                        err = "Sorry, I could not generate an answer. Please try again."
+                    except Exception as e:
+                        err = f"⚠️ Error: {str(e)}"
                         st.error(err)
                         st.session_state.chat_history.append(("assistant", err))
+
+# ── Sidebar debug: show key status ──────────────────────────────────────────
+with st.sidebar:
+    with st.expander("🔑 API Key Status", expanded=False):
+        key = os.environ.get("GROQ_API_KEY", "")
+        if not key or key.startswith("your_"):
+            st.error("GROQ_API_KEY is NOT set in Streamlit Secrets!")
+        else:
+            st.success(f"Key loaded: {key[:8]}...{key[-4:]}")
